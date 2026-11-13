@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus Lost & Found Portal | University Student Services</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <!-- Font Awesome Icons for crisp UI icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            campus: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            },
+            gold: {
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* Custom scrollbar for smooth aesthetic */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    /* Toast slide-in animation */
+    @keyframes slideInRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    .toast-enter {
+      animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Top Navigation Header -->
+  <header class="bg-campus-900 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 gap-4">
+        <!-- Brand Logo & University Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl bg-gold-500 text-campus-900 flex items-center justify-center shadow-md shrink-0">
+            <i class="fa-solid fa-compass text-2xl"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-lg sm:text-xl font-extrabold tracking-tight">Campus Reunite</h1>
+              <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-campus-800 text-gold-400 border border-campus-700">
+                Student Services
+              </span>
+            </div>
+            <p class="text-xs text-campus-100">Official University Lost & Found Verification Portal</p>
+          </div>
+        </div>
+
+        <!-- Primary Navigation & Action Button -->
+        <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-wrap">
+          <!-- Firebase Connection Status & Config Trigger -->
+          <button onclick="openFirebaseModal()" id="firebase-status-btn" class="px-3 py-2 rounded-xl bg-campus-800/90 hover:bg-campus-700 border border-campus-600/80 text-xs font-semibold text-white transition flex items-center gap-2" title="Configure Firebase Project Credentials">
+            <span id="fb-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <i class="fa-solid fa-fire text-amber-400"></i>
+            <span id="fb-status-text">Connecting Firebase...</span>
+          </button>
+
+          <!-- Role Switcher Tabs (Student Portal vs Admin Security Console) -->
+          <nav class="flex bg-campus-800/80 p-1 rounded-xl border border-campus-700" role="tablist">
+            <button id="tab-student" onclick="switchRole('student')" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-campus-900 shadow-sm">
+              <i class="fa-solid fa-user-graduate"></i>
+              <span>Student Portal</span>
+            </button>
+            <button id="tab-admin" onclick="requestAdminAccess()" class="px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-campus-100 hover:text-white relative">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Admin Console</span>
+              <span id="pending-badge" class="ml-0.5 px-1.5 py-0.2 text-[11px] font-bold rounded-full bg-amber-500 text-slate-900 hidden">0</span>
+            </button>
+          </nav>
+
+          <!-- Report Found Item CTA -->
+          <button onclick="openReportModal()" class="px-3.5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 active:scale-95 text-campus-950 font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2 shrink-0">
+            <i class="fa-solid fa-camera"></i>
+            <span>Report Found</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Quick Campus Stats Banner -->
+  <section class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-box-open"></i>
+          </div>
+          <div>
+            <p class="text-xs font-medium text-slate-500">Total Logged</p>
+            <p id="stat-total" class="text-xl font-extrabold text-slate-800">0</p>
+          </div>
+        </div>
+
+        <div class="bg-emerald-50/60 rounded-xl p-3.5 border border-emerald-200/70 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <p class="text-xs font-medium text-emerald-700">Available to Claim</p>
+            <p id="stat-available" class="text-xl font-extrabold text-emerald-900">0</p>
+          </div>
+        </div>
+
+        <div class="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/70 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-hourglass-half"></i>
+          </div>
+          <div>
+            <p class="text-xs font-medium text-amber-700">Claim Pending</p>
+            <p id="stat-pending" class="text-xl font-extrabold text-amber-900">0</p>
+          </div>
+        </div>
+
+        <div class="bg-indigo-50/60 rounded-xl p-3.5 border border-indigo-200/70 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-handshake"></i>
+          </div>
+          <div>
+            <p class="text-xs font-medium text-indigo-700">Reunited / Returned</p>
+            <p id="stat-returned" class="text-xl font-extrabold text-indigo-900">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- =========================================================
+         VIEW 1: STUDENT / FINDER PORTAL
+         ========================================================= -->
+    <div id="view-student" class="space-y-6">
+      <!-- Student Portal Sub-Navigation (Browse Board vs My Claims & Reports) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+        <div class="flex items-center gap-2">
+          <button id="subtab-board" onclick="switchStudentSubTab('board')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-campus-600 text-white shadow-sm transition flex items-center gap-2">
+            <i class="fa-solid fa-grid-2"></i> Found Items Board
+          </button>
+          <button id="subtab-myactivity" onclick="switchStudentSubTab('myactivity')" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left"></i> My Claims & Reports
+            <span id="my-activity-count" class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-200 text-slate-700">0</span>
+          </button>
+        </div>
+        <div class="text-xs text-slate-500 flex items-center gap-2">
+          <i class="fa-solid fa-fingerprint text-campus-600"></i>
+          <span>Session UID: <code id="session-uid-display" class="font-mono text-[11px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">authenticating...</code></span>
+        </div>
+      </div>
+
+      <!-- SUB-VIEW 1A: FOUND ITEMS BOARD -->
+      <div id="student-board-section" class="space-y-6">
+        <!-- Search & Filter Control Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 space-y-4">
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-lg mx-auto">
+          <div class="w-16 h-16 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
+            <i class="fa-solid fa-box-archive text-2xl"></i>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 mb-1">No matching items found</h3>
+          <p class="text-sm text-slate-500 mb-5">Try adjusting your category filter, status toggle, or search keywords.</p>
+          <button onclick="resetAllFilters()" class="px-4 py-2 rounded-xl bg-campus-600 hover:bg-campus-700 text-white text-sm font-semibold transition">
+            Clear All Filters
+          </button>
+        </div>
+      </div>
+
+      <!-- SUB-VIEW 1B: MY CLAIMS & REPORTS (PRIVATE USER TRACKER) -->
+      <div id="student-myactivity-section" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- My Submitted Claims -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-hand-holding-heart text-emerald-600"></i> My Ownership Claims
+              </h3>
+              <span class="text-[11px] text-slate-400">Synced via Firestore</span>
+            </div>
+            <div id="my-claims-list" class="space-y-3"></div>
+          </div>
+
+          <!-- My Reported Found Items -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-camera text-campus-600"></i> Items I Found & Logged
+              </h3>
+              <span class="text-[11px] text-slate-400">Synced via Firestore</span>
+            </div>
+            <div id="my-reports-list" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         VIEW 2: ADMIN SECURITY CONSOLE (STAFF PIN PROTECTED)
+         ========================================================= -->
+    <div id="view-admin" class="hidden space-y-6">
+      <!-- Dark Security Console Header Banner -->
+      <div class="bg-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-lg border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs font-semibold mb-2">
+            <i class="fa-solid fa-shield-halved"></i> Campus Security Admin Console &bull; Authenticated
+          </div>
+          <h2 class="text-xl font-bold">Verification Desk, Inventory & Firebase Audit Stream</h2>
+          <p class="text-sm text-slate-300 mt-1 max-w-2xl">
+            Inspect hidden ownership proofs, approve or reject claims, manage all campus inventory records in Cloud Firestore, and monitor automated notifications.
+          </p>
+        </div>
+        <div class="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+          <button onclick="openFirebaseModal()" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-database"></i> Firebase Config
+          </button>
+          <button onclick="switchRole('student')" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition">
+            <i class="fa-solid fa-arrow-left mr-1.5"></i> Exit Admin
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left Column: Pending Claims Queue (7 cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-clipboard-check text-amber-500"></i>
+              <span>Pending Claim Verification Requests</span>
+            </h3>
+            <span id="queue-count-label" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">0 Pending</span>
+          </div>
+
+          <div id="pending-claims-list" class="space-y-4">
+            <!-- Pending Claim Cards Rendered Here -->
+          </div>
+        </div>
+
+        <!-- Right Column: Automated Status & Notification Dispatch Log (5 cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-bell text-campus-600"></i>
+              <span>Firestore Notification & Audit Log</span>
+            </h3>
+            <span class="text-xs text-slate-500">onSnapshot Live</span>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="bg-slate-900 text-slate-300 px-4 py-2.5 text-xs font-mono flex items-center justify-between">
+              <span>firestore-sync-daemon v3.0</span>
+              <span class="flex items-center gap-1.5 text-emerald-400">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Synced
+              </span>
+            </div>
+            <div id="activity-log-list" class="divide-y divide-slate-100 max-h-[540px] overflow-y-auto p-4 space-y-3">
+              <!-- Logs Rendered Here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Inventory Management Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-boxes-stacked text-campus-600"></i>
+              <span>Complete Campus Firestore Inventory</span>
+            </h3>
+            <p class="text-xs text-slate-500">Direct administrative control over all stored items in Cloud Firestore</p>
+          </div>
+          <button onclick="seedDemoDataIfEmpty(true)" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition self-start sm:self-center">
+            <i class="fa-solid fa-seedling mr-1 text-emerald-600"></i> Seed Sample Campus Items
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider">
+                <th class="py-3 px-4 font-bold">Item</th>
+                <th class="py-3 px-4 font-bold">Category & Location</th>
+                <th class="py-3 px-4 font-bold">Finder</th>
+                <th class="py-3 px-4 font-bold">Status</th>
+                <th class="py-3 px-4 font-bold text-right">Admin Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-inventory-tbody" class="divide-y divide-slate-100">
+              <!-- Rows injected via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <p><strong>Campus Reunite</strong> &bull; Student Union Room 104, Main Campus Security & Desk</p>
+      <p>Mon–Fri 8:00 AM – 8:00 PM &bull; Automated Verification System</p>
+    </div>
+  </footer>
+
+  <!-- =========================================================
+       MODAL 1: REPORT FOUND ITEM (WITH PHOTO UPLOAD & PRESETS)
+       ========================================================= -->
+  <div id="report-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden my-8 border border-slate-200">
+      <!-- Modal Header -->
+      <div class="bg-campus-900 text-white px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-gold-500 text-campus-950 flex items-center justify-center">
+            <i class="fa-solid fa-plus"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base">Report a Found Item</h3>
+            <p class="text-xs text-campus-100">Upload a photo and log details to help reunite it with its owner</p>
+          </div>
+        </div>
+        <button onclick="closeReportModal()" class="text-campus-100 hover:text-white p-2 rounded-lg transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Report Form -->
+      <form id="report-form" onsubmit="handleReportSubmit(event)" class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <!-- Photo Upload & Preview Area -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+            Item Photo <span class="text-rose-500">*</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+            <!-- Dropzone / File Input -->
+            <label for="item-photo-input" class="cursor-pointer border-2 border-dashed border-slate-300 hover:border-campus-500 bg-slate-50 hover:bg-campus-50/40 rounded-xl p-4 text-center transition flex flex-col items-center justify-center h-36">
+              <i class="fa-solid fa-cloud-arrow-up text-2xl text-campus-600 mb-1.5"></i>
+              <span class="text-xs font-semibold text-slate-700">Click to upload photo</span>
+              <span class="text-[11px] text-slate-400 mt-0.5">Auto-compressed for Firestore</span>
+              <input type="file" id="item-photo-input" accept="image/*" onchange="handlePhotoUpload(event)" class="hidden" />
+            </label>
+
+            <!-- Live Image Preview Box -->
+            <div class="relative h-36 rounded-xl border border-slate-200 bg-slate-100 overflow-hidden flex items-center justify-center">
+              <img id="report-photo-preview" src="" alt="Preview" class="w-full h-full object-cover hidden" />
+              <div id="report-photo-placeholder" class="text-center p-3">
+                <i class="fa-regular fa-image text-2xl text-slate-400 mb-1"></i>
+                <p class="text-xs text-slate-500">No photo selected yet</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Preset Sample Photos (in case user doesn't have an image file handy) -->
+          <div class="mt-2.5">
+            <p class="text-[11px] font-semibold text-slate-500 mb-1.5">Or pick a quick sample campus item photo:</p>
+            <div class="flex flex-wrap gap-1.5" id="preset-photo-buttons">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Item Title & Category -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="report-title" class="block text-xs font-semibold text-slate-700 mb-1">Item Title <span class="text-rose-500">*</span></label>
+            <input type="text" id="report-title" required placeholder="e.g., Silver MacBook Pro 14&quot;" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+          <div>
+            <label for="report-category" class="block text-xs font-semibold text-slate-700 mb-1">Category <span class="text-rose-500">*</span></label>
+            <select id="report-category" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-campus-500">
+              <option value="Electronics">Electronics</option>
+              <option value="IDs & Cards">IDs & Cards</option>
+              <option value="Keys">Keys</option>
+              <option value="Clothing & Accessories">Clothing & Accessories</option>
+              <option value="Books & Stationery">Books & Stationery</option>
+              <option value="Bags">Bags</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Location & Date Found -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="report-location" class="block text-xs font-semibold text-slate-700 mb-1">Location Found <span class="text-rose-500">*</span></label>
+            <input type="text" id="report-location" required placeholder="e.g., Main Library, 2nd Floor" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+          <div>
+            <label for="report-date" class="block text-xs font-semibold text-slate-700 mb-1">Date Found <span class="text-rose-500">*</span></label>
+            <input type="date" id="report-date" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+        </div>
+
+        <!-- Public Description -->
+        <div>
+          <label for="report-description" class="block text-xs font-semibold text-slate-700 mb-1">Public Description <span class="text-rose-500">*</span></label>
+          <textarea id="report-description" rows="2" required placeholder="Describe general appearance, color, brand (keep 1-2 unique details hidden so the real owner can verify)..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500"></textarea>
+        </div>
+
+        <!-- Finder Contact (For Automated Notifications) -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="report-finder-name" class="block text-xs font-semibold text-slate-700 mb-1">Your Name (Finder) <span class="text-rose-500">*</span></label>
+            <input type="text" id="report-finder-name" required placeholder="e.g., Jordan Rivera" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+          <div>
+            <label for="report-finder-email" class="block text-xs font-semibold text-slate-700 mb-1">Campus Email (for alerts) <span class="text-rose-500">*</span></label>
+            <input type="email" id="report-finder-email" required placeholder="j.rivera@university.edu" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeReportModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-semibold transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-campus-600 hover:bg-campus-700 text-white text-sm font-bold shadow-sm transition flex items-center gap-2">
+            <i class="fa-solid fa-paper-plane"></i> Publish Found Item
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL 2: CLAIM VERIFICATION REQUEST
+       ========================================================= -->
+  <div id="claim-modal" class="fixed inset-0 z-40 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden my-8 border border-slate-200">
+      <!-- Modal Header -->
+      <div class="bg-campus-900 text-white px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base">Submit Ownership Claim</h3>
+            <p class="text-xs text-campus-100">Verify unique details to initiate automated hold</p>
+          </div>
+        </div>
+        <button onclick="closeClaimModal()" class="text-campus-100 hover:text-white p-2 rounded-lg transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="claim-form" onsubmit="handleClaimSubmit(event)" class="p-6 space-y-4">
+        <input type="hidden" id="claim-item-id" />
+
+        <!-- Selected Item Preview Card -->
+        <div class="flex items-center gap-3.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+          <img id="claim-item-img" src="" alt="Item" class="w-16 h-16 rounded-lg object-cover border border-slate-200 shrink-0" />
+          <div class="min-w-0">
+            <span id="claim-item-category" class="text-[11px] font-bold uppercase tracking-wider text-campus-600">Category</span>
+            <h4 id="claim-item-title" class="font-bold text-slate-800 text-sm truncate">Item Title</h4>
+            <p id="claim-item-location" class="text-xs text-slate-500 truncate"><i class="fa-solid fa-location-dot mr-1"></i>Location</p>
+          </div>
+        </div>
+
+        <!-- Claimant Identity -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="claimant-name" class="block text-xs font-semibold text-slate-700 mb-1">Full Name <span class="text-rose-500">*</span></label>
+            <input type="text" id="claimant-name" required placeholder="Alex Morgan" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+          <div>
+            <label for="claimant-id" class="block text-xs font-semibold text-slate-700 mb-1">Student / Staff ID # <span class="text-rose-500">*</span></label>
+            <input type="text" id="claimant-id" required placeholder="e.g., STU-2026-8841" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500" />
+          </div>
+        </div>
+
+        <div>
+          <label for="claimant-email" class="block text-xs font-semibold text-slate-700 mb-1">University Email <span class="text-rose-500">*</span></label>
+          <input type="email" id="claimant-email" required placeholder="alex.morgan@university.edu" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500" />
+        </div>
+
+        <!-- Proof of Ownership -->
+        <div>
+          <label for="claim-proof" class="block text-xs font-semibold text-slate-700 mb-1">
+            Proof of Ownership Details <span class="text-rose-500">*</span>
+          </label>
+          <textarea
+            id="claim-proof"
+            rows="3"
+            required
+            placeholder="Provide specific identifying details not visible in the photo (e.g., lock screen wallpaper, engraving, serial number, specific stickers, or items inside pockets)..."
+            class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-campus-500"
+          ></textarea>
+          <p class="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
+            <i class="fa-solid fa-bolt text-amber-500"></i>
+            Submitting automatically sets item status to <strong>Claim Pending</strong> and alerts Campus Desk.
+          </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeClaimModal()" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-semibold transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition flex items-center gap-2">
+            <i class="fa-solid fa-shield-check"></i> Submit Verification Request
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL 3: ADMIN SECURITY PIN AUTHENTICATION MODAL
+       ========================================================= -->
+  <div id="admin-pin-modal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-200">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-sm">Staff Security Verification</h3>
+            <p class="text-[11px] text-slate-300">Enter Campus Security PIN to unlock Admin Console</p>
+          </div>
+        </div>
+        <button onclick="closeAdminPinModal()" class="text-slate-400 hover:text-white p-1.5 rounded-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <form onsubmit="verifyAdminPin(event)" class="p-6 space-y-4">
+        <div>
+          <label for="admin-pin-input" class="block text-xs font-bold text-slate-700 mb-1.5">Security Desk PIN</label>
+          <input
+            type="password"
+            id="admin-pin-input"
+            maxlength="8"
+            required
+            placeholder="••••"
+            class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-campus-500"
+          />
+          <p class="text-[11px] text-slate-500 mt-2 text-center">
+            Demo Staff PIN: <span class="font-mono font-bold text-campus-700 bg-campus-50 px-1.5 py-0.5 rounded">2026</span>
+          </p>
+        </div>
+        <div class="flex items-center gap-2.5">
+          <button type="button" onclick="closeAdminPinModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50 transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition">
+            Unlock Console
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       MODAL 4: FIREBASE PROJECT CONFIGURATION MODAL
+       ========================================================= -->
+  <div id="firebase-modal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden my-8 border border-slate-200">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500 text-slate-950 flex items-center justify-center">
+            <i class="fa-solid fa-fire"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base">Firebase Cloud Connection</h3>
+            <p class="text-xs text-slate-300">Connect your own Firebase project or use built-in cloud sync</p>
+          </div>
+        </div>
+        <button onclick="closeFirebaseModal()" class="text-slate-400 hover:text-white p-2 rounded-lg transition">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
+        <!-- Current Connection Banner -->
+        <div id="fb-modal-banner" class="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2.5">
+          <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 text-sm"></i>
+          <div>
+            <p class="font-bold" id="fb-modal-mode-title">Connected to Live Cloud Firestore</p>
+            <p class="text-emerald-700 mt-0.5" id="fb-modal-mode-desc">Real-time listeners (onSnapshot) are active across items, claims, and audit logs.</p>
+          </div>
+        </div>
+
+        <form id="firebase-config-form" onsubmit="handleSaveCustomFirebaseConfig(event)" class="space-y-3">
+          <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Connect Custom Firebase Project (Optional)</p>
+          <p class="text-xs text-slate-600">
+            Paste your Firebase Web App SDK credentials from <strong>Firebase Console &rarr; Project Settings</strong> to sync directly with your own Firestore database:
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">apiKey <span class="text-rose-500">*</span></label>
+              <input type="text" id="fb-apiKey" required placeholder="AIzaSy..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-campus-500" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">authDomain <span class="text-rose-500">*</span></label>
+              <input type="text" id="fb-authDomain" required placeholder="your-app.firebaseapp.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-campus-500" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">projectId <span class="text-rose-500">*</span></label>
+              <input type="text" id="fb-projectId" required placeholder="your-app-id" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-campus-500" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">storageBucket</label>
+              <input type="text" id="fb-storageBucket" placeholder="your-app.appspot.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-campus-500" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">messagingSenderId</label>
+              <input type="text" id="fb-messagingSenderId" placeholder="1234567890" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-campus-500" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">appId <span class="text-rose-500">*</span></label>
+              <input type="text" id="fb-appId" required placeholder="1:123456:web:abcdef" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-campus-500" />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-100">
+            <button type="button" onclick="resetToDefaultCloudFirebase()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+              Use Built-in Cloud DB
+            </button>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="closeFirebaseModal()" class="px-3.5 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition">
+                Close
+              </button>
+              <button type="submit" class="px-4 py-2 rounded-xl bg-campus-600 hover:bg-campus-700 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-plug"></i> Connect Firebase
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       FIREBASE SDK & REAL-TIME APPLICATION LOGIC
+       ========================================================= -->
+  <script type="module">
+    import { initializeApp, deleteApp, getApps } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    /**
+     * Helper: Generates crisp inline SVG illustrations encoded as Data URIs
+     */
+    function createItemIllustration(bgColor, accentColor, iconUnicode, labelText, subLabel) {
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+          <defs>
+            <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${bgColor}" />
+              <stop offset="100%" stop-color="${accentColor}" />
+            </linearGradient>
+          </defs>
+          <rect width="600" height="400" fill="url(#g)" />
+          <circle cx="510" cy="70" r="95" fill="#ffffff" fill-opacity="0.08" />
+          <circle cx="90" cy="340" r="120" fill="#ffffff" fill-opacity="0.08" />
+          <rect x="215" y="95" width="170" height="140" rx="28" fill="#ffffff" fill-opacity="0.18" />
+          <text x="300" y="185" font-size="72" text-anchor="middle" fill="#ffffff">${iconUnicode}</text>
+          <text x="300" y="282" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700" text-anchor="middle" fill="#ffffff">${labelText}</text>
+          <text x="300" y="314" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="500" text-anchor="middle" fill="#ffffff" fill-opacity="0.85">${subLabel}</text>
+        </svg>
+      `;
+      return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg.trim());
+    }
+
+    const CATEGORIES = [
+      { name: 'All', icon: 'fa-layer-group' },
+      { name: 'Electronics', icon: 'fa-laptop' },
+      { name: 'IDs & Cards', icon: 'fa-id-card' },
+      { name: 'Keys', icon: 'fa-key' },
+      { name: 'Clothing & Accessories', icon: 'fa-shirt' },
+      { name: 'Books & Stationery', icon: 'fa-book' },
+      { name: 'Bags', icon: 'fa-bag-shopping' },
+      { name: 'Other', icon: 'fa-shapes' }
+    ];
+
+    const SAMPLE_PRESETS = [
+      {
+        label: '🎧 Headphones',
+        category: 'Electronics',
+        title: 'Sony WH-1000XM5 Headphones',
+        image: createItemIllustration('#1e3a8a', '#3b82f6', '🎧', 'Wireless Headphones', 'Black Matte Finish')
+      },
+      {
+        label: '🪪 Student ID',
+        category: 'IDs & Cards',
+        title: 'University Smart ID Card',
+        image: createItemIllustration('#0f766e', '#14b8a6', '🪪', 'Campus ID Card', 'Found Near Cafeteria')
+      },
+      {
+        label: '🔑 Dorm Keys',
+        category: 'Keys',
+        title: 'Keyring with Brass Key & Fob',
+        image: createItemIllustration('#b45309', '#f59e0b', '🔑', 'Dorm & Locker Keys', 'Blue Lanyard Attached')
+      },
+      {
+        label: '🎒 Backpack',
+        category: 'Bags',
+        title: 'Navy Canvas Campus Backpack',
+        image: createItemIllustration('#3730a3', '#6366f1', '🎒', 'Campus Backpack', 'With Enamel Pins')
+      }
+    ];
+
+    const ADMIN_PIN = '2026';
+    const defaultAppId = typeof __app_id !== 'undefined' ? __app_id : 'campus-lost-found-portal';
+
+    // Firebase Runtime Variables
+    let fbApp = null;
+    let db = null;
+    let auth = null;
+    let currentUser = null;
+    let activeAppId = defaultAppId;
+    let isCustomFirebase = false;
+    let unsubscribeItems = null;
+    let unsubscribeClaims = null;
+    let unsubscribeLogs = null;
+
+    // Application Reactive State
+    let state = {
+      items: [],
+      claims: [],
+      logs: [],
+      selectedCategory: 'All',
+      selectedStatus: 'All',
+      searchQuery: '',
+      uploadedPhotoDataUrl: '',
+      currentRole: 'student',
+      adminAuthenticated: false,
+      studentSubTab: 'board',
+      hasSeededInitial: false
+    };
+
+    // =========================================================
+    // FIREBASE INITIALIZATION & REAL-TIME LISTENERS
+    // =========================================================
+    async function initFirebaseConnection(customConfig = null) {
+      updateFirebaseStatusUI('connecting', 'Connecting Firebase...');
+
+      try {
+        // Tear down existing listeners & app instance if reconnecting
+        if (unsubscribeItems) { unsubscribeItems(); unsubscribeItems = null; }
+        if (unsubscribeClaims) { unsubscribeClaims(); unsubscribeClaims = null; }
+        if (unsubscribeLogs) { unsubscribeLogs(); unsubscribeLogs = null; }
+
+        const existingApps = getApps();
+        for (const appInstance of existingApps) {
+          await deleteApp(appInstance);
+        }
+
+        let configToUse = null;
+        if (customConfig) {
+          configToUse = customConfig;
+          isCustomFirebase = true;
+          activeAppId = customConfig.projectId || 'custom-campus-app';
+        } else if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+          configToUse = JSON.parse(__firebase_config);
+          isCustomFirebase = false;
+          activeAppId = defaultAppId;
+        } else {
+          throw new Error('No Firebase configuration available.');
+        }
+
+        fbApp = initializeApp(configToUse);
+        auth = getAuth(fbApp);
+        db = getFirestore(fbApp);
+
+        // RULE 3: Authenticate FIRST before attaching any Firestore queries
+        if (!isCustomFirebase && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+
+        currentUser = auth.currentUser;
+        if (currentUser) {
+          const uidEl = document.getElementById('session-uid-display');
+          if (uidEl) uidEl.textContent = currentUser.uid;
+        }
+
+        onAuthStateChanged(auth, (user) => {
+          currentUser = user;
+          const uidEl = document.getElementById('session-uid-display');
+          if (uidEl && user) uidEl.textContent = user.uid;
+        });
+
+        updateFirebaseStatusUI(
+          'connected',
+          isCustomFirebase ? `Firebase (${configToUse.projectId})` : 'Firebase Live Sync'
+        );
+
+        attachFirestoreListeners();
+      } catch (err) {
+        console.error('Firebase initialization error:', err);
+        updateFirebaseStatusUI('error', 'Firebase Offline');
+        showToast('Firebase Connection Issue', err.message || 'Could not connect to Firestore.', 'error');
+      }
+    }
+
+    function updateFirebaseStatusUI(status, label) {
+      const dot = document.getElementById('fb-status-dot');
+      const text = document.getElementById('fb-status-text');
+      const modalTitle = document.getElementById('fb-modal-mode-title');
+      const modalDesc = document.getElementById('fb-modal-mode-desc');
+
+      if (text) text.textContent = label;
+      if (dot) {
+        dot.className =
+          status === 'connected'
+            ? 'w-2.5 h-2.5 rounded-full bg-emerald-400'
+            : status === 'error'
+            ? 'w-2.5 h-2.5 rounded-full bg-rose-500'
+            : 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+      }
+
+      if (modalTitle && modalDesc) {
+        if (status === 'connected') {
+          modalTitle.textContent = isCustomFirebase
+            ? `Connected to Custom Project: ${activeAppId}`
+            : 'Connected to Built-in Cloud Firestore';
+          modalDesc.textContent = 'Real-time onSnapshot listeners are active across items, claims, and notifications.';
+        } else {
+          modalTitle.textContent = 'Connection Pending or Offline';
+          modalDesc.textContent = 'Check your Firebase project credentials or ensure Anonymous Auth & Firestore are enabled.';
+        }
+      }
+    }
+
+    /**
+     * RULE 1 & RULE 2: Strict /artifacts/{appId}/public/data/{collectionName} paths
+     * and simple collection() queries sorted in JS memory.
+     */
+    function getPublicCollectionRef(collectionName) {
+      return collection(db, 'artifacts', activeAppId, 'public', 'data', collectionName);
+    }
+
+    function getPublicDocRef(collectionName, docId) {
+      return doc(db, 'artifacts', activeAppId, 'public', 'data', collectionName, docId);
+    }
+
+    function attachFirestoreListeners() {
+      if (!currentUser || !db) return;
+
+      // 1. Items Collection Listener
+      unsubscribeItems = onSnapshot(
+        getPublicCollectionRef('items'),
+        async (snapshot) => {
+          const loadedItems = [];
+          snapshot.forEach((docSnap) => {
+            loadedItems.push({ id: docSnap.id, ...docSnap.data() });
+          });
+
+          // Sort newest first in memory
+          loadedItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          state.items = loadedItems;
+
+          // Seed initial sample campus items automatically if database is empty on first load
+          if (loadedItems.length === 0 && !state.hasSeededInitial) {
+            state.hasSeededInitial = true;
+            await seedDemoDataIfEmpty(false);
+            return;
+          }
+
+          refreshAllUI();
+        },
+        (error) => {
+          console.error('Firestore items listener error:', error);
+          showToast('Firestore Sync Error', 'Unable to read items collection. Check Firestore rules.', 'error');
+        }
+      );
+
+      // 2. Claims Collection Listener
+      unsubscribeClaims = onSnapshot(
+        getPublicCollectionRef('claims'),
+        (snapshot) => {
+          const loadedClaims = [];
+          snapshot.forEach((docSnap) => {
+            loadedClaims.push({ claimId: docSnap.id, ...docSnap.data() });
+          });
+          loadedClaims.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          state.claims = loadedClaims;
+          refreshAllUI();
+        },
+        (error) => {
+          console.error('Firestore claims listener error:', error);
+        }
+      );
+
+      // 3. Notifications / Audit Logs Listener
+      unsubscribeLogs = onSnapshot(
+        getPublicCollectionRef('notifications'),
+        (snapshot) => {
+          const loadedLogs = [];
+          snapshot.forEach((docSnap) => {
+            loadedLogs.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          loadedLogs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          state.logs = loadedLogs;
+          renderActivityLogs();
+        },
+        (error) => {
+          console.error('Firestore notifications listener error:', error);
+        }
+      );
+    }
+
+    async function seedDemoDataIfEmpty(forceToast = false) {
+      if (!currentUser || !db) return;
+      const now = Date.now();
+
+      const seedItems = [
+        {
+          id: 'LF-1042',
+          title: 'Apple AirPods Pro (2nd Gen) in Case',
+          category: 'Electronics',
+          location: 'Science & Engineering Library, 3rd Floor',
+          dateFound: '2026-11-12',
+          description: 'White MagSafe charging case found on a study desk near the window. Has a distinctive sticker on the back.',
+          status: 'Available',
+          image: createItemIllustration('#1d4ed8', '#0284c7', '🎧', 'AirPods Pro Case', 'Science Library • 3F'),
+          finderName: 'Maya Lin',
+          finderEmail: 'm.lin@university.edu',
+          finderUid: 'seed-user-1',
+          createdAt: now - 1000
+        },
+        {
+          id: 'LF-1041',
+          title: 'Student ID & Transit Pass Holder',
+          category: 'IDs & Cards',
+          location: 'Student Union Food Court',
+          dateFound: '2026-11-12',
+          description: 'Clear vertical badge holder containing a university student ID card (name masked for privacy) and metro card.',
+          status: 'Claim Pending',
+          image: createItemIllustration('#047857', '#10b981', '🪪', 'Student ID & Pass', 'Student Union • Table 12'),
+          finderName: 'Marcus Vance',
+          finderEmail: 'mvance@university.edu',
+          finderUid: 'seed-user-2',
+          createdAt: now - 2000
+        },
+        {
+          id: 'LF-1040',
+          title: '32oz Insulated Cobalt Water Bottle',
+          category: 'Other',
+          location: 'Campus Recreation Center, Court 2',
+          dateFound: '2026-11-11',
+          description: 'Cobalt blue stainless steel water bottle with a black straw lid left beside the bleachers.',
+          status: 'Available',
+          image: createItemIllustration('#0369a1', '#38bdf8', '🧴', 'Insulated Bottle', 'Rec Center • Court 2'),
+          finderName: 'Coach Devon',
+          finderEmail: 'd.brooks@university.edu',
+          finderUid: 'seed-user-3',
+          createdAt: now - 3000
+        },
+        {
+          id: 'LF-1039',
+          title: 'Toyota Car Key & Dormitory Fob',
+          category: 'Keys',
+          location: 'North Quad Pathway',
+          dateFound: '2026-11-11',
+          description: 'Set of 3 keys on a carabiner clip including a black car key fob and an RFID residence hall tag.',
+          status: 'Available',
+          image: createItemIllustration('#b45309', '#f59e0b', '🔑', 'Car & Dorm Keychain', 'North Quad Walkway'),
+          finderName: 'Samira Patel',
+          finderEmail: 's.patel@university.edu',
+          finderUid: 'seed-user-4',
+          createdAt: now - 4000
+        },
+        {
+          id: 'LF-1038',
+          title: 'Organic Chemistry 9th Ed. + Notebook',
+          category: 'Books & Stationery',
+          location: 'Chemistry Hall, Lecture Room 101',
+          dateFound: '2026-11-10',
+          description: 'Hardcover textbook bundled with a spiral-bound lab notebook containing handwritten lecture notes.',
+          status: 'Returned',
+          image: createItemIllustration('#6d28d9', '#8b5cf6', '📚', 'Chemistry Textbook', 'Chem Hall • Room 101'),
+          finderName: 'Prof. H. Alvarez',
+          finderEmail: 'halvarez@university.edu',
+          finderUid: 'seed-user-5',
+          createdAt: now - 5000
+        }
+      ];
+
+      try {
+        for (const item of seedItems) {
+          await setDoc(getPublicDocRef('items', item.id), item);
+        }
+
+        await setDoc(getPublicDocRef('claims', 'CLM-901'), {
+          claimId: 'CLM-901',
+          itemId: 'LF-1041',
+          itemTitle: 'Student ID & Transit Pass Holder',
+          claimantName: 'Elena Rostova',
+          claimantId: 'STU-2026-4419',
+          claimantEmail: 'e.rostova@university.edu',
+          claimantUid: 'seed-claimant-1',
+          proof: 'My ID ends in 4419, Engineering major, and there is a small holographic star sticker on the back of the metro card.',
+          status: 'Pending',
+          submittedAt: 'Nov 13, 09:15 AM',
+          createdAt: now - 1500
+        });
+
+        await writeFirestoreNotification(
+          'CLAIM_SUBMITTED',
+          'Automated Hold: LF-1041 (Student ID & Pass)',
+          'Status changed Available → Claim Pending. Email & SMS dispatched to Elena Rostova and Marcus Vance.'
+        );
+
+        if (forceToast) {
+          showToast('Firestore Seeded', 'Sample campus items & pending claim synced to Cloud Firestore.', 'success');
+        }
+      } catch (e) {
+        console.error('Error seeding Firestore:', e);
+      }
+    }
+
+    async function writeFirestoreNotification(type, title, detail) {
+      if (!currentUser || !db) return;
+      const now = new Date();
+      const timestamp =
+        now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+        ', ' +
+        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const logId = 'LOG-' + Date.now() + '-' + Math.floor(Math.random() * 100);
+
+      await setDoc(getPublicDocRef('notifications', logId), {
+        id: logId,
+        timestamp,
+        type,
+        title,
+        detail,
+        createdAt: Date.now()
+      });
+    }
+
+    // =========================================================
+    // INITIALIZATION & GLOBAL WINDOW EXPORTS
+    // =========================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      const dateInput = document.getElementById('report-date');
+      if (dateInput) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+      }
+
+      renderCategoryPills();
+      renderPresetButtons();
+      initFirebaseConnection();
+    });
+
+    function refreshAllUI() {
+      updateStats();
+      renderItemsGrid();
+      renderMyActivity();
+      renderPendingClaimsQueue();
+      renderAdminInventoryTable();
+      renderActivityLogs();
+    }
+
+    // =========================================================
+    // ROLE SWITCHING (STUDENT PORTAL vs ADMIN CONSOLE)
+    // =========================================================
+    function switchRole(role) {
+      state.currentRole = role;
+      const studentView = document.getElementById('view-student');
+      const adminView = document.getElementById('view-admin');
+      const tabStudent = document.getElementById('tab-student');
+      const tabAdmin = document.getElementById('tab-admin');
+
+      if (role === 'student') {
+        studentView.classList.remove('hidden');
+        adminView.classList.add('hidden');
+        tabStudent.className = 'px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-white text-campus-900 shadow-sm';
+        tabAdmin.className = 'px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-campus-100 hover:text-white relative';
+      } else {
+        studentView.classList.add('hidden');
+        adminView.classList.remove('hidden');
+        tabAdmin.className = 'px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-amber-400 text-slate-950 shadow-sm relative';
+        tabStudent.className = 'px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-campus-100 hover:text-white';
+      }
+    }
+
+    function requestAdminAccess() {
+      if (state.adminAuthenticated) {
+        switchRole('admin');
+        return;
+      }
+      document.getElementById('admin-pin-modal').classList.remove('hidden');
+      setTimeout(() => document.getElementById('admin-pin-input').focus(), 50);
+    }
+
+    function closeAdminPinModal() {
+      document.getElementById('admin-pin-modal').classList.add('hidden');
+      document.getElementById('admin-pin-input').value = '';
+    }
+
+    function verifyAdminPin(event) {
+      event.preventDefault();
+      const enteredPin = document.getElementById('admin-pin-input').value.trim();
+      if (enteredPin === ADMIN_PIN) {
+        state.adminAuthenticated = true;
+        closeAdminPinModal();
+        switchRole('admin');
+        showToast('Admin Console Unlocked', 'Authenticated as Campus Security Desk.', 'success');
+      } else {
+        showToast('Invalid Security PIN', 'Please enter the Campus Security Desk PIN (2026).', 'error');
+      }
+    }
+
+    function switchStudentSubTab(subTab) {
+      state.studentSubTab = subTab;
+      const boardSec = document.getElementById('student-board-section');
+      const mySec = document.getElementById('student-myactivity-section');
+      const btnBoard = document.getElementById('subtab-board');
+      const btnMy = document.getElementById('subtab-myactivity');
+
+      if (subTab === 'board') {
+        boardSec.classList.remove('hidden');
+        mySec.classList.add('hidden');
+        btnBoard.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-campus-600 text-white shadow-sm transition flex items-center gap-2';
+        btnMy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2';
+      } else {
+        boardSec.classList.add('hidden');
+        mySec.classList.remove('hidden');
+        btnMy.className = 'px-3.5 py-2 rounded-xl text-xs font-bold bg-campus-600 text-white shadow-sm transition flex items-center gap-2';
+        btnBoard.className = 'px-3.5 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition flex items-center gap-2';
+      }
+    }
+
+    // =========================================================
+    // FIREBASE CONFIGURATION MODAL HANDLERS
+    // =========================================================
+    function openFirebaseModal() {
+      document.getElementById('firebase-modal').classList.remove('hidden');
+    }
+
+    function closeFirebaseModal() {
+      document.getElementById('firebase-modal').classList.add('hidden');
+    }
+
+    async function handleSaveCustomFirebaseConfig(event) {
+      event.preventDefault();
+      const customConfig = {
+        apiKey: document.getElementById('fb-apiKey').value.trim(),
+        authDomain: document.getElementById('fb-authDomain').value.trim(),
+        projectId: document.getElementById('fb-projectId').value.trim(),
+        storageBucket: document.getElementById('fb-storageBucket').value.trim(),
+        messagingSenderId: document.getElementById('fb-messagingSenderId').value.trim(),
+        appId: document.getElementById('fb-appId').value.trim()
+      };
+
+      closeFirebaseModal();
+      showToast('Connecting to Firebase...', `Switching database target to ${customConfig.projectId}`, 'info');
+      await initFirebaseConnection(customConfig);
+    }
+
+    async function resetToDefaultCloudFirebase() {
+      closeFirebaseModal();
+      document.getElementById('firebase-config-form').reset();
+      showToast('Restoring Default Cloud DB', 'Reconnecting to built-in Firebase environment...', 'info');
+      await initFirebaseConnection(null);
+    }
+
+    // =========================================================
+    // STATS & BADGE COUNTERS
+    // =========================================================
+    function updateStats() {
+      const total = state.items.length;
+      const available = state.items.filter(i => i.status === 'Available').length;
+      const pending = state.items.filter(i => i.status === 'Claim Pending').length;
+      const returned = state.items.filter(i => i.status === 'Returned').length;
+
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-available').textContent = available;
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-returned').textContent = returned;
+
+      const pendingBadge = document.getElementById('pending-badge');
+      pendingBadge.textContent = pending;
+      pendingBadge.classList.toggle('hidden', pending === 0);
+
+      // Update user's personal activity counter
+      const uid = currentUser ? currentUser.uid : '';
+      const myClaimsCount = state.claims.filter(c => c.claimantUid === uid).length;
+      const myReportsCount = state.items.filter(i => i.finderUid === uid).length;
+      const myCountEl = document.getElementById('my-activity-count');
+      if (myCountEl) myCountEl.textContent = myClaimsCount + myReportsCount;
+    }
+
+    // =========================================================
+    // FILTERING & SEARCH LOGIC
+    // =========================================================
+    function renderCategoryPills() {
+      const container = document.getElementById('category-pills');
+      container.innerHTML = CATEGORIES.map(cat => {
+        const isActive = state.selectedCategory === cat.name;
+        const activeClasses = isActive
+          ? 'bg-campus-600 text-white border-campus-600 shadow-sm'
+          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900';
+        return `
+          <button
+            onclick="setCategoryFilter('${cat.name}')"
+            class="px-3.5 py-1.5 rounded-full border text-xs font-semibold transition flex items-center gap-1.5 shrink-0 ${activeClasses}"
+          >
+            <i class="fa-solid ${cat.icon}"></i>
+            <span>${cat.name}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function setCategoryFilter(category) {
+      state.selectedCategory = category;
+      renderCategoryPills();
+      renderItemsGrid();
+    }
+
+    function setStatusFilter(status) {
+      state.selectedStatus = status;
+      document.querySelectorAll('.status-btn').forEach(btn => {
+        const isMatch = btn.dataset.status === status;
+        btn.className = isMatch
+          ? 'status-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm transition'
+          : 'status-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition';
+      });
+      renderItemsGrid();
+    }
+
+    function handleFilterChange() {
+      const input = document.getElementById('search-input');
+      state.searchQuery = input.value.trim().toLowerCase();
+      document.getElementById('clear-search-btn').classList.toggle('hidden', state.searchQuery === '');
+      renderItemsGrid();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      state.searchQuery = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      renderItemsGrid();
+    }
+
+    function resetAllFilters() {
+      state.selectedCategory = 'All';
+      state.selectedStatus = 'All';
+      state.searchQuery = '';
+      document.getElementById('search-input').value = '';
+      document.getElementById('clear-search-btn').classList.add('hidden');
+      renderCategoryPills();
+      setStatusFilter('All');
+    }
+
+    // =========================================================
+    // RENDER FOUND ITEMS GRID & STUDENT PERSONAL ACTIVITY
+    // =========================================================
+    function getStatusBadgeHTML(status) {
+      if (status === 'Available') {
+        return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-sm">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Available
+                </span>`;
+      }
+      if (status === 'Claim Pending') {
+        return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-sm">
+                  <i class="fa-solid fa-clock text-[10px]"></i> Claim Pending
+                </span>`;
+      }
+      return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-sm">
+                <i class="fa-solid fa-check-double text-[10px]"></i> Returned
+              </span>`;
+    }
+
+    function renderItemsGrid() {
+      const grid = document.getElementById('items-grid');
+      const emptyState = document.getElementById('empty-state');
+      const resultsCount = document.getElementById('results-count');
+      const resetBtn = document.getElementById('reset-filters-btn');
+
+      const filtered = state.items.filter(item => {
+        const matchesCategory = state.selectedCategory === 'All' || item.category === state.selectedCategory;
+        const matchesStatus = state.selectedStatus === 'All' || item.status === state.selectedStatus;
+        const matchesSearch =
+          !state.searchQuery ||
+          item.title.toLowerCase().includes(state.searchQuery) ||
+          item.description.toLowerCase().includes(state.searchQuery) ||
+          item.location.toLowerCase().includes(state.searchQuery) ||
+          item.id.toLowerCase().includes(state.searchQuery);
+        return matchesCategory && matchesStatus && matchesSearch;
+      });
+
+      const hasActiveFilter = state.selectedCategory !== 'All' || state.selectedStatus !== 'All' || state.searchQuery !== '';
+      resetBtn.classList.toggle('hidden', !hasActiveFilter);
+      resultsCount.textContent = `Showing ${filtered.length} of ${state.items.length} campus items`;
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      grid.innerHTML = filtered.map(item => {
+        const fallbackImg = createItemIllustration('#334155', '#64748b', '📦', item.category, item.id);
+        let actionButton = '';
+
+        if (item.status === 'Available') {
+          actionButton = `
+            <button onclick="openClaimModal('${item.id}')" class="w-full py-2.5 px-4 rounded-xl bg-campus-600 hover:bg-campus-700 active:scale-[0.99] text-white font-bold text-xs sm:text-sm transition shadow-sm flex items-center justify-center gap-2">
+              <i class="fa-solid fa-hand-holding-heart"></i> Claim Item
+            </button>
+          `;
+        } else if (item.status === 'Claim Pending') {
+          actionButton = `
+            <div class="w-full py-2.5 px-4 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 font-semibold text-xs sm:text-sm flex items-center justify-center gap-2">
+              <i class="fa-solid fa-hourglass-half"></i> Verification Under Review
+            </div>
+          `;
+        } else {
+          actionButton = `
+            <div class="w-full py-2.5 px-4 rounded-xl bg-slate-100 text-slate-500 font-semibold text-xs sm:text-sm text-center flex items-center justify-center gap-2">
+              <i class="fa-solid fa-circle-check text-indigo-500"></i> Reunited with Owner
+            </div>
+          `;
+        }
+
+        return `
+          <article class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition overflow-hidden flex flex-col">
+            <div class="relative h-48 bg-slate-100 overflow-hidden group">
+              <img
+                src="${item.image}"
+                alt="${escapeHTML(item.title)}"
+                onerror="this.onerror=null;this.src='${fallbackImg}';"
+                class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+              />
+              <div class="absolute top-3 left-3">
+                ${getStatusBadgeHTML(item.status)}
+              </div>
+              <div class="absolute bottom-3 right-3 px-2 py-0.5 rounded-md bg-slate-900/75 text-white text-[11px] font-mono backdrop-blur-sm">
+                ${item.id}
+              </div>
+            </div>
+
+            <div class="p-5 flex-1 flex flex-col">
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <span class="text-xs font-bold text-campus-600 uppercase tracking-wider">${escapeHTML(item.category)}</span>
+                <span class="text-xs text-slate-400"><i class="fa-regular fa-calendar mr-1"></i>${item.dateFound}</span>
+              </div>
+
+              <h3 class="text-base font-bold text-slate-900 leading-snug mb-2">${escapeHTML(item.title)}</h3>
+              <p class="text-xs text-slate-600 line-clamp-2 mb-3 flex-1">${escapeHTML(item.description)}</p>
+
+              <div class="space-y-1.5 pt-3 border-t border-slate-100 mb-4 text-xs text-slate-600">
+                <div class="flex items-start gap-2">
+                  <i class="fa-solid fa-location-dot text-rose-500 mt-0.5 shrink-0"></i>
+                  <span class="font-medium">${escapeHTML(item.location)}</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-400">
+                  <i class="fa-regular fa-user shrink-0"></i>
+                  <span>Logged by ${escapeHTML(item.finderName)}</span>
+                </div>
+              </div>
+
+              <div>${actionButton}</div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderMyActivity() {
+      const uid = currentUser ? currentUser.uid : '';
+      const myClaims = state.claims.filter(c => c.claimantUid === uid);
+      const myReports = state.items.filter(i => i.finderUid === uid);
+
+      const claimsContainer = document.getElementById('my-claims-list');
+      const reportsContainer = document.getElementById('my-reports-list');
+
+      if (myClaims.length === 0) {
+        claimsContainer.innerHTML = `<p class="text-xs text-slate-500 py-6 text-center">You haven't submitted any ownership claims in this session yet.</p>`;
+      } else {
+        claimsContainer.innerHTML = myClaims.map(c => `
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="font-mono font-bold text-campus-700">${escapeHTML(c.claimId)} &bull; ${escapeHTML(c.itemId)}</span>
+              <span class="px-2 py-0.5 rounded-full font-bold text-[11px] ${
+                c.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                c.status === 'Rejected' ? 'bg-rose-100 text-rose-800' :
+                'bg-amber-100 text-amber-800'
+              }">${escapeHTML(c.status)}</span>
+            </div>
+            <p class="font-bold text-slate-800">${escapeHTML(c.itemTitle || 'Campus Item')}</p>
+            <p class="text-slate-600">Submitted: ${escapeHTML(c.submittedAt)}</p>
+          </div>
+        `).join('');
+      }
+
+      if (myReports.length === 0) {
+        reportsContainer.innerHTML = `<p class="text-xs text-slate-500 py-6 text-center">You haven't reported any found items yet. Click "Report Found" to log one!</p>`;
+      } else {
+        reportsContainer.innerHTML = myReports.map(item => `
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-3 text-xs">
+            <img src="${item.image}" alt="" class="w-12 h-12 rounded-lg object-cover border border-slate-200 shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-mono font-bold text-slate-500">${item.id}</span>
+                ${getStatusBadgeHTML(item.status)}
+              </div>
+              <p class="font-bold text-slate-800 truncate mt-1">${escapeHTML(item.title)}</p>
+              <p class="text-slate-500 truncate">${escapeHTML(item.location)}</p>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // =========================================================
+    // REPORT FOUND ITEM MODAL & CANVAS PHOTO COMPRESSION
+    // =========================================================
+    function renderPresetButtons() {
+      const container = document.getElementById('preset-photo-buttons');
+      container.innerHTML = SAMPLE_PRESETS.map((preset, idx) => `
+        <button
+          type="button"
+          onclick="applySamplePreset(${idx})"
+          class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-campus-100 text-slate-700 hover:text-campus-800 border border-slate-200 text-xs font-medium transition"
+        >
+          ${preset.label}
+        </button>
+      `).join('');
+    }
+
+    function openReportModal() {
+      document.getElementById('report-modal').classList.remove('hidden');
+    }
+
+    function closeReportModal() {
+      document.getElementById('report-modal').classList.add('hidden');
+      document.getElementById('report-form').reset();
+      document.getElementById('report-date').value = new Date().toISOString().split('T')[0];
+      state.uploadedPhotoDataUrl = '';
+      document.getElementById('report-photo-preview').classList.add('hidden');
+      document.getElementById('report-photo-placeholder').classList.remove('hidden');
+    }
+
+    function handlePhotoUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('Invalid File', 'Please select a valid image file (PNG, JPG, WEBP).', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function () {
+          // Compress image via HTML5 Canvas so it easily fits within Firestore 1MB document limit
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 640;
+          const scale = Math.min(1, MAX_WIDTH / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          state.uploadedPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+          const previewImg = document.getElementById('report-photo-preview');
+          const placeholder = document.getElementById('report-photo-placeholder');
+          previewImg.src = state.uploadedPhotoDataUrl;
+          previewImg.classList.remove('hidden');
+          placeholder.classList.add('hidden');
+          showToast('Photo Ready', 'Image compressed and attached for Firestore upload.', 'info');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function applySamplePreset(index) {
+      const preset = SAMPLE_PRESETS[index];
+      if (!preset) return;
+
+      state.uploadedPhotoDataUrl = preset.image;
+      const previewImg = document.getElementById('report-photo-preview');
+      const placeholder = document.getElementById('report-photo-placeholder');
+      previewImg.src = preset.image;
+      previewImg.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+
+      const titleInput = document.getElementById('report-title');
+      const catSelect = document.getElementById('report-category');
+      if (!titleInput.value.trim()) {
+        titleInput.value = preset.title;
+      }
+      catSelect.value = preset.category;
+    }
+
+    async function handleReportSubmit(event) {
+      event.preventDefault();
+      if (!currentUser || !db) {
+        showToast('Database Not Ready', 'Please wait for Firebase authentication to complete.', 'error');
+        return;
+      }
+
+      const title = document.getElementById('report-title').value.trim();
+      const category = document.getElementById('report-category').value;
+      const location = document.getElementById('report-location').value.trim();
+      const dateFound = document.getElementById('report-date').value;
+      const description = document.getElementById('report-description').value.trim();
+      const finderName = document.getElementById('report-finder-name').value.trim();
+      const finderEmail = document.getElementById('report-finder-email').value.trim();
+
+      const finalImage =
+        state.uploadedPhotoDataUrl ||
+        createItemIllustration('#1e3a8a', '#3b82f6', '📦', title.slice(0, 20), category);
+
+      const newId = 'LF-' + Math.floor(1050 + Math.random() * 8900);
+      const newItem = {
+        id: newId,
+        title,
+        category,
+        location,
+        dateFound,
+        description,
+        status: 'Available',
+        image: finalImage,
+        finderName,
+        finderEmail,
+        finderUid: currentUser.uid,
+        createdAt: Date.now()
+      };
+
+      try {
+        await setDoc(getPublicDocRef('items', newId), newItem);
+        await writeFirestoreNotification(
+          'ITEM_LOGGED',
+          `New Found Item Indexed: ${newId}`,
+          `"${title}" found at ${location} logged by ${finderName}. Saved to Cloud Firestore.`
+        );
+
+        closeReportModal();
+        showToast('Saved to Firebase', `${title} (${newId}) is now live across all connected clients.`, 'success');
+      } catch (err) {
+        console.error('Error saving item to Firestore:', err);
+        showToast('Save Failed', err.message || 'Could not write item to Firestore.', 'error');
+      }
+    }
+
+    // =========================================================
+    // CLAIM VERIFICATION REQUEST MODAL & FIRESTORE TRANSACTION
+    // =========================================================
+    function openClaimModal(itemId) {
+      const item = state.items.find(i => i.id === itemId);
+      if (!item || item.status !== 'Available') return;
+
+      document.getElementById('claim-item-id').value = item.id;
+      document.getElementById('claim-item-img').src = item.image;
+      document.getElementById('claim-item-category').textContent = item.category;
+      document.getElementById('claim-item-title').textContent = item.title;
+      document.getElementById('claim-item-location').innerHTML = `<i class="fa-solid fa-location-dot mr-1 text-rose-500"></i>${escapeHTML(item.location)}`;
+
+      document.getElementById('claim-modal').classList.remove('hidden');
+    }
+
+    function closeClaimModal() {
+      document.getElementById('claim-modal').classList.add('hidden');
+      document.getElementById('claim-form').reset();
+    }
+
+    async function handleClaimSubmit(event) {
+      event.preventDefault();
+      if (!currentUser || !db) return;
+
+      const itemId = document.getElementById('claim-item-id').value;
+      const claimantName = document.getElementById('claimant-name').value.trim();
+      const claimantId = document.getElementById('claimant-id').value.trim();
+      const claimantEmail = document.getElementById('claimant-email').value.trim();
+      const proof = document.getElementById('claim-proof').value.trim();
+
+      const item = state.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      const claimId = 'CLM-' + Math.floor(100 + Math.random() * 899);
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      try {
+        // 1. Write claim verification document to Firestore
+        await setDoc(getPublicDocRef('claims', claimId), {
+          claimId,
+          itemId: item.id,
+          itemTitle: item.title,
+          claimantName,
+          claimantId,
+          claimantEmail,
+          claimantUid: currentUser.uid,
+          proof,
+          status: 'Pending',
+          submittedAt: `Today, ${nowStr}`,
+          createdAt: Date.now()
+        });
+
+        // 2. Automatically update item status in Firestore to 'Claim Pending'
+        await updateDoc(getPublicDocRef('items', item.id), {
+          status: 'Claim Pending',
+          activeClaimId: claimId
+        });
+
+        // 3. Log automated notification event
+        await writeFirestoreNotification(
+          'CLAIM_SUBMITTED',
+          `Automated Hold: ${item.id} (${item.title})`,
+          `Status auto-updated Available → Claim Pending. Email/SMS alerts sent to claimant (${claimantEmail}) & finder (${item.finderEmail}).`
+        );
+
+        closeClaimModal();
+        showToast(
+          'Claim Submitted to Firebase',
+          `Status updated to "Claim Pending". Automated alerts dispatched to you and ${item.finderName}.`,
+          'warning'
+        );
+      } catch (err) {
+        console.error('Claim submission error:', err);
+        showToast('Claim Error', err.message || 'Could not submit claim to Firestore.', 'error');
+      }
+    }
+
+    // =========================================================
+    // ADMIN CONSOLE: PENDING CLAIMS QUEUE & INVENTORY MANAGEMENT
+    // =========================================================
+    function renderPendingClaimsQueue() {
+      const container = document.getElementById('pending-claims-list');
+      const countLabel = document.getElementById('queue-count-label');
+      const pendingClaims = state.claims.filter(c => c.status === 'Pending');
+
+      countLabel.textContent = `${pendingClaims.length} Pending`;
+
+      if (pendingClaims.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+              <i class="fa-solid fa-check-double text-xl"></i>
+            </div>
+            <h4 class="font-bold text-slate-800 text-sm">All Claims Reviewed!</h4>
+            <p class="text-xs text-slate-500 mt-1">There are currently no pending ownership verification requests in Cloud Firestore.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pendingClaims.map(claim => {
+        const item = state.items.find(i => i.id === claim.itemId) || {
+          id: claim.itemId,
+          title: claim.itemTitle || 'Found Item',
+          location: 'Campus Desk',
+          image: createItemIllustration('#334155', '#64748b', '📦', 'Item', claim.itemId)
+        };
+
+        return `
+          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-5 space-y-4">
+            <div class="flex items-start gap-4">
+              <img src="${item.image}" alt="${escapeHTML(item.title)}" class="w-20 h-20 rounded-xl object-cover border border-slate-200 shrink-0" />
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-xs font-mono font-bold text-slate-500">${item.id} &bull; ${claim.claimId}</span>
+                  <span class="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    Submitted ${escapeHTML(claim.submittedAt)}
+                  </span>
+                </div>
+                <h4 class="font-bold text-slate-900 text-base mt-1">${escapeHTML(item.title)}</h4>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  <i class="fa-solid fa-location-dot text-rose-500 mr-1"></i>Found at ${escapeHTML(item.location)}
+                </p>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2 text-xs">
+              <div class="flex flex-wrap justify-between gap-2 pb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-slate-400 block text-[11px]">Claimant</span>
+                  <strong class="text-slate-800">${escapeHTML(claim.claimantName)}</strong>
+                  <span class="text-slate-500">(${escapeHTML(claim.claimantId)})</span>
+                </div>
+                <div>
+                  <span class="text-slate-400 block text-[11px]">Contact</span>
+                  <span class="text-campus-700 font-medium">${escapeHTML(claim.claimantEmail)}</span>
+                </div>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[11px] mb-0.5">Submitted Ownership Proof:</span>
+                <p class="text-slate-800 font-medium bg-white p-2.5 rounded-lg border border-slate-200">
+                  "${escapeHTML(claim.proof)}"
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center justify-end gap-2.5 pt-1">
+              <button
+                onclick="processClaimDecision('${claim.claimId}', '${item.id}', 'reject')"
+                class="w-full sm:w-auto px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center justify-center gap-1.5"
+              >
+                <i class="fa-solid fa-xmark"></i> Reject & Re-list Item
+              </button>
+              <button
+                onclick="processClaimDecision('${claim.claimId}', '${item.id}', 'approve')"
+                class="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+              >
+                <i class="fa-solid fa-check"></i> Approve Claim & Mark Returned
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function processClaimDecision(claimId, itemId, decision) {
+      if (!currentUser || !db) return;
+      const claim = state.claims.find(c => c.claimId === claimId);
+      const item = state.items.find(i => i.id === itemId);
+      if (!claim) return;
+
+      try {
+        if (decision === 'approve') {
+          await updateDoc(getPublicDocRef('claims', claimId), { status: 'Approved' });
+          if (item) {
+            await updateDoc(getPublicDocRef('items', itemId), { status: 'Returned' });
+          }
+          await writeFirestoreNotification(
+            'CLAIM_APPROVED',
+            `Claim Approved (${claimId}): ${itemId} → Returned`,
+            `Ownership verified for ${claim.claimantName}. Automated pickup pass sent to ${claim.claimantEmail}.`
+          );
+          showToast('Claim Approved → Status: Returned', `Firestore updated & notifications sent to ${claim.claimantName}.`, 'success');
+        } else {
+          await updateDoc(getPublicDocRef('claims', claimId), { status: 'Rejected' });
+          if (item) {
+            await updateDoc(getPublicDocRef('items', itemId), { status: 'Available', activeClaimId: null });
+          }
+          await writeFirestoreNotification(
+            'CLAIM_REJECTED',
+            `Claim Rejected (${claimId}): ${itemId} → Available`,
+            `Verification details did not match. Item automatically re-listed as Available. Notification sent to ${claim.claimantEmail}.`
+          );
+          showToast('Claim Rejected → Item Re-listed', `Item ${itemId} restored to Available in Firestore.`, 'info');
+        }
+      } catch (err) {
+        console.error('Decision error:', err);
+        showToast('Update Error', err.message || 'Could not update Firestore record.', 'error');
+      }
+    }
+
+    function renderAdminInventoryTable() {
+      const tbody = document.getElementById('admin-inventory-tbody');
+      if (!tbody) return;
+
+      if (state.items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No items stored in Firestore yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = state.items.map(item => `
+        <tr class="hover:bg-slate-50/80 transition">
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-3">
+              <img src="${item.image}" alt="" class="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0" />
+              <div>
+                <p class="font-bold text-slate-800">${escapeHTML(item.title)}</p>
+                <span class="font-mono text-[11px] text-slate-400">${item.id}</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-4">
+            <span class="font-semibold text-campus-700 block">${escapeHTML(item.category)}</span>
+            <span class="text-slate-500">${escapeHTML(item.location)}</span>
+          </td>
+          <td class="py-3 px-4">
+            <span class="font-medium text-slate-800 block">${escapeHTML(item.finderName)}</span>
+            <span class="text-slate-400">${escapeHTML(item.finderEmail)}</span>
+          </td>
+          <td class="py-3 px-4">${getStatusBadgeHTML(item.status)}</td>
+          <td class="py-3 px-4 text-right space-x-1.5">
+            ${item.status !== 'Available' ? `
+              <button onclick="adminResetItemStatus('${item.id}')" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold transition">
+                Re-list
+              </button>
+            ` : ''}
+            <button onclick="adminDeleteItem('${item.id}')" class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold transition">
+              Delete
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function adminResetItemStatus(itemId) {
+      if (!currentUser || !db) return;
+      try {
+        await updateDoc(getPublicDocRef('items', itemId), { status: 'Available', activeClaimId: null });
+        await writeFirestoreNotification('ITEM_LOGGED', `Admin Override: ${itemId} Re-listed`, `Security Desk reset ${itemId} status to Available.`);
+        showToast('Status Reset', `${itemId} is now Available.`, 'info');
+      } catch (err) {
+        showToast('Error', err.message, 'error');
+      }
+    }
+
+    async function adminDeleteItem(itemId) {
+      if (!currentUser || !db) return;
+      try {
+        await deleteDoc(getPublicDocRef('items', itemId));
+        await writeFirestoreNotification('CLAIM_REJECTED', `Admin Removed Record: ${itemId}`, `Item ${itemId} permanently deleted from Cloud Firestore.`);
+        showToast('Record Deleted', `${itemId} removed from Firestore.`, 'warning');
+      } catch (err) {
+        showToast('Delete Failed', err.message, 'error');
+      }
+    }
+
+    // =========================================================
+    // AUTOMATED NOTIFICATION & AUDIT LOGS
+    // =========================================================
+    function renderActivityLogs() {
+      const container = document.getElementById('activity-log-list');
+      if (!container) return;
+
+      if (state.logs.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Waiting for Firestore events...</p>`;
+        return;
+      }
+
+      container.innerHTML = state.logs.map(log => {
+        let iconClass = 'fa-bell text-campus-600 bg-campus-50';
+        if (log.type === 'CLAIM_SUBMITTED') iconClass = 'fa-hourglass-half text-amber-600 bg-amber-50';
+        if (log.type === 'CLAIM_APPROVED') iconClass = 'fa-circle-check text-emerald-600 bg-emerald-50';
+        if (log.type === 'CLAIM_REJECTED') iconClass = 'fa-rotate-left text-rose-600 bg-rose-50';
+
+        return `
+          <div class="pt-3 first:pt-0 flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${iconClass.split(' ').slice(1).join(' ')}">
+              <i class="fa-solid ${iconClass.split(' ')[0]} text-xs"></i>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-bold text-slate-800 truncate">${escapeHTML(log.title)}</p>
+                <span class="text-[10px] font-mono text-slate-400 shrink-0">${escapeHTML(log.timestamp || '')}</span>
+              </div>
+              <p class="text-xs text-slate-600 mt-0.5 leading-relaxed">${escapeHTML(log.detail)}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================
+    // TOAST ALERTS & SECURITY SANITIZATION
+    // =========================================================
+    function showToast(title, message, variant = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      const styles = {
+        success: { border: 'border-emerald-200', iconBg: 'bg-emerald-100 text-emerald-600', icon: 'fa-circle-check' },
+        warning: { border: 'border-amber-200', iconBg: 'bg-amber-100 text-amber-600', icon: 'fa-bolt' },
+        error: { border: 'border-rose-200', iconBg: 'bg-rose-100 text-rose-600', icon: 'fa-circle-exclamation' },
+        info: { border: 'border-campus-200', iconBg: 'bg-campus-100 text-campus-600', icon: 'fa-bell' }
+      }[variant] || { border: 'border-slate-200', iconBg: 'bg-slate-100 text-slate-600', icon: 'fa-info-circle' };
+
+      toast.className = `toast-enter pointer-events-auto bg-white rounded-xl shadow-lg border ${styles.border} p-3.5 flex items-start gap-3`;
+      toast.innerHTML = `
+        <div class="w-8 h-8 rounded-lg ${styles.iconBg} flex items-center justify-center shrink-0 mt-0.5">
+          <i class="fa-solid ${styles.icon}"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold text-slate-900">${escapeHTML(title)}</p>
+          <p class="text-xs text-slate-600 mt-0.5 leading-snug">${escapeHTML(message)}</p>
+        </div>
+        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      `;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast.parentElement) {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateX(100%)';
+          toast.style.transition = 'all 0.25s ease';
+          setTimeout(() => toast.remove(), 250);
+        }
+      }, 4800);
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Expose functions globally for inline HTML event handlers inside type="module"
+    Object.assign(window, {
+      switchRole,
+      requestAdminAccess,
+      closeAdminPinModal,
+      verifyAdminPin,
+      switchStudentSubTab,
+      openFirebaseModal,
+      closeFirebaseModal,
+      handleSaveCustomFirebaseConfig,
+      resetToDefaultCloudFirebase,
+      setCategoryFilter,
+      setStatusFilter,
+      handleFilterChange,
+      clearSearch,
+      resetAllFilters,
+      openReportModal,
+      closeReportModal,
+      handlePhotoUpload,
+      applySamplePreset,
+      handleReportSubmit,
+      openClaimModal,
+      closeClaimModal,
+      handleClaimSubmit,
+      processClaimDecision,
+      adminResetItemStatus,
+      adminDeleteItem,
+      seedDemoDataIfEmpty
+    });
+  </script>
+</body>
+</html>
